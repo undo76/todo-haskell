@@ -3,28 +3,35 @@ import System.Directory
 import System.Console.ANSI
 import System.IO
 import Data.List
+-- import UI.NCurses
+-- import qualified Data.Text as T
 
-dispatch :: [(String, [String] -> IO ())]
+dispatch :: [(String, FilePath -> [String] -> IO ())]
 dispatch =  [ ("add", add)
             , ("view", view)
             , ("remove", remove)
-            , ("interactive", interactive)
+            -- , ("interactive", interactive)
             ]            
 
-add :: [String] -> IO ()
-add (fileName : todoItem) = appendFile fileName $ (unwords todoItem) ++ "\n"
-
-view :: [String] -> IO ()
-view [fileName] = do
+add :: FilePath -> [String] -> IO ()
+add fileName todoItem = do 
+    item <- case todoItem of 
+        [] -> putStrLn "Item to add: " >> getLine
+        xs -> return $ unwords xs
+    appendFile fileName $ item ++ "\n"
+    
+view :: FilePath -> [String] -> IO ()
+view fileName _ = do
     contents <- readFile fileName
-    let todoTasks = lines contents
-        numberedTasks = zipWith showTodoLine [0..] todoTasks
-    putStr $ unlines numberedTasks
+    sequence_ $ zipWith showTodoLine [0..] $ lines contents
 
-remove :: [String] -> IO ()
-remove [fileName, numberStr] = do
+remove :: FilePath -> [String] -> IO ()
+remove fileName numberStr = do
+    item <- case numberStr of 
+        [] -> putStrLn "Item to remove: " >> getLine
+        x:xs -> return x
     contents <- readFile fileName
-    let number = read numberStr
+    let number = read item
         todoTasks = lines contents
         newTodoTasks = delete (todoTasks !! number) todoTasks
     (tempName, tempHandle) <- openTempFile "." "temp"
@@ -33,23 +40,25 @@ remove [fileName, numberStr] = do
     removeFile fileName
     renameFile tempName fileName
     
-showTodoLine :: Int -> String -> String
-showTodoLine n todoStr =
-    setSGRCode [SetColor Foreground Vivid Red] ++
-    show n ++ 
-    setSGRCode [SetConsoleIntensity FaintIntensity] ++
-    " - " ++
-    setSGRCode [Reset] ++
-    todoStr 
+showTodoLine :: Int -> String -> IO ()
+showTodoLine n todoStr = do
+    setSGR [SetColor Foreground Vivid Red]
+    putStr $ show n
+    setSGR [SetConsoleIntensity FaintIntensity]
+    putStr " - "
+    setSGR [Reset]
+    putStr todoStr 
 
-interactive :: [String] -> IO ()
-interactive [fileName] = do
-    clearScreen
-    view [fileName]
+-- interactive :: [String] -> IO ()
+-- interactive [fileName] = do
+--     -- clearScreen
+--     -- view [fileName]
+--     interactive [fileName]
 
+main :: IO ()
 main = do
-    (command:args) <- getArgs
+    (command : fileName : args) <- getArgs
     case lookup command dispatch of
-        (Just action) -> action args
+        (Just action) -> action fileName args
         Nothing -> putStrLn $ "Error: command '" ++ command ++ "' not found" 
 
