@@ -1,2 +1,2 @@
 # todo-haskell
-A simple TODO console application written in Haskell
+A simple console TO-DO application written in Haskell
